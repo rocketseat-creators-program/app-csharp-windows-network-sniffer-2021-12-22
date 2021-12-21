@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Net;
+using System.Net.Sockets;
+using System.Text;
 
 namespace NetworkSniffer
 {
@@ -12,6 +14,39 @@ namespace NetworkSniffer
 
             var ipAddress = SelectIPAddress();
             Console.WriteLine("IP: " + ipAddress);
+
+            var socket = CreateSocket(ipAddress);
+
+            var buffer = new byte[ushort.MaxValue];
+            var bufferLength = socket.Receive(buffer);
+
+            Console.WriteLine("Bytes: " + bufferLength);
+            Console.WriteLine(Encoding.Default.GetString(buffer));
+        }
+
+        static Socket CreateSocket(IPAddress ipAddress)
+        {
+            var socket = new Socket(
+                ipAddress.AddressFamily,
+                SocketType.Raw,
+                ProtocolType.IP);
+
+            var ipEndPoint = new IPEndPoint(ipAddress, 0);
+            socket.Bind(ipEndPoint);
+
+            socket.SetSocketOption(
+                SocketOptionLevel.IP,
+                SocketOptionName.HeaderIncluded,
+                true);
+
+            var optionIn = new byte[] { 1, 0, 0, 0 };
+            var optionOut = new byte[4];
+            socket.IOControl(
+                IOControlCode.ReceiveAll,
+                optionIn,
+                optionOut);
+
+            return socket;
         }
 
         static IPAddress SelectIPAddress()
