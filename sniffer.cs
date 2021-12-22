@@ -287,7 +287,7 @@ namespace NetworkSniffer
 
             // Comprimentos dos campos: https://en.wikipedia.org/wiki/Internet_Control_Message_Protocol
 
-            Type = stream.ReadByte();
+            Type = (ICMPType)stream.ReadByte();
             Code = stream.ReadByte();
             Checksum = (ushort) IPAddress.NetworkToHostOrder((short)stream.ReadUInt16());
             RestOfHeader = (uint) IPAddress.NetworkToHostOrder((int)stream.ReadUInt32());
@@ -297,7 +297,7 @@ namespace NetworkSniffer
             Array.Copy(data, dataOffsetInBytes, Data, 0, Data.Length);
         }
 
-        public byte Type { get; private set; }
+        public ICMPType Type { get; private set; }
         public byte Code { get; private set; }
         public ushort Checksum { get; private set; }
         public uint RestOfHeader { get; private set; }
@@ -307,7 +307,7 @@ namespace NetworkSniffer
         {
             var result = new StringBuilder();
             result.AppendLine("ICMP, " + length + " bytes");
-            result.AppendLine(Format.Binary("Type", Type, 8));
+            result.AppendLine(Format.Binary("Type", (byte)Type, 8) + ", " + Type);
             result.AppendLine(Format.Binary("Code", Code, 8));
             result.AppendLine(Format.Binary("Checksum", Checksum, 16));
             result.AppendLine(Format.Binary("RestOfHeader", RestOfHeader, 32));
@@ -483,5 +483,26 @@ namespace NetworkSniffer
         WESP = 141,
         ROHC = 142,
         Ethernet = 143
+    }
+
+    enum ICMPType: byte
+    {
+        EchoReply = 0,
+        DestinationUnreachable = 3,
+        SourceQuench = 4,
+        RedirectMessage = 5,
+        EchoRequest = 8,
+        RouterAdvertisement = 9,
+        RouterSolicitation = 10,
+        TimeExceeded = 11,
+        ParameterProblem = 12,
+        Timestamp = 13,
+        TimestampReply = 14,
+        InformationRequest = 15,
+        InformationReply = 16,
+        AddressMaskRequest = 17,
+        AddressMaskReply = 18,
+        ExtendedEchoRequest = 42,
+        ExtendedEchoReply = 43
     }
 }
