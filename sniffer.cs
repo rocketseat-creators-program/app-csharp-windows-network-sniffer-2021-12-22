@@ -9,6 +9,17 @@ namespace NetworkSniffer
     {
         static void Main(string[] args)
         {
+            try
+            {
+                Run(args);
+            }
+            catch (Exception exception)
+            {
+                Console.WriteLine("Fatal: " + exception.Message);
+            }
+        }
+
+        static void Run(string[] args) {
             Console.WriteLine("Analisador de Pacote de Rede");
             Console.WriteLine("^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
 
@@ -26,6 +37,11 @@ namespace NetworkSniffer
 
         static Socket CreateSocket(IPAddress ipAddress)
         {
+            if (Environment.OSVersion.Platform == PlatformID.Unix)
+            {
+                throw new NotImplementedException("SocketType.Raw not works on Linux.");
+            }
+
             var socket = new Socket(
                 ipAddress.AddressFamily,
                 SocketType.Raw,
@@ -34,10 +50,20 @@ namespace NetworkSniffer
             var ipEndPoint = new IPEndPoint(ipAddress, 0);
             socket.Bind(ipEndPoint);
 
+            if (ipAddress.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                throw new NotImplementedException("SocketOptionName.HeaderIncluded works only for IPv4.");
+            }
+
             socket.SetSocketOption(
                 SocketOptionLevel.IP,
                 SocketOptionName.HeaderIncluded,
                 true);
+
+            if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+            {
+                throw new NotImplementedException("IOControlCode.ReceiveAll works only on Windows.");
+            }
 
             var optionIn = new byte[] { 1, 0, 0, 0 };
             var optionOut = new byte[4];
