@@ -28,11 +28,16 @@ namespace NetworkSniffer
 
             var socket = CreateSocket(ipAddress);
 
-            var buffer = new byte[ushort.MaxValue];
-            var bufferLength = socket.Receive(buffer);
+            do
+            {
+                var buffer = new byte[ushort.MaxValue];
+                var bufferLength = socket.Receive(buffer);
 
-            Console.WriteLine("Bytes: " + bufferLength);
-            Console.WriteLine(Encoding.Default.GetString(buffer));
+                Console.WriteLine("## [ {0:yyyy-MM-dd HH:mm:ss.fff} ] ##".PadLeft(80, '#'), DateTime.Now);
+                Console.WriteLine("Bytes: " + bufferLength);
+                Console.WriteLine(Encoding.Default.GetString(buffer));
+            } while (Console.KeyAvailable == false ||
+                     Console.ReadKey().Key != ConsoleKey.Escape);
         }
 
         static Socket CreateSocket(IPAddress ipAddress)
