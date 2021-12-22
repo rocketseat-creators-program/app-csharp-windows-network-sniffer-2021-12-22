@@ -158,9 +158,9 @@ namespace NetworkSniffer
             Array.Copy(data, internetHeaderLengthInBytes, Data, 0, Data.Length);
 
             DataAsProtocol =
-                Protocol == IPProtocolType.TCP
-                    ? new ProtocolTCP(Data, Data.Length)
-                    : null;
+                Protocol == IPProtocolType.TCP ? (object)new ProtocolTCP(Data, Data.Length) :
+                Protocol == IPProtocolType.ICMP ? (object)new ProtocolICMP(Data, Data.Length) :
+                null;
         }
 
         public byte Version { get; private set; }
@@ -270,6 +270,47 @@ namespace NetworkSniffer
             result.AppendLine(Format.Binary("WindowSize", WindowSize, 16));
             result.AppendLine(Format.Binary("Checksum", Checksum, 16));
             result.AppendLine(Format.Binary("UrgentPointer", UrgentPointer, 16));
+            result.AppendLine(Encoding.Default.GetString(Data));
+            return result.ToString();
+        }
+    }
+
+    class ProtocolICMP
+    {
+        private int length;
+
+        public ProtocolICMP(byte[] data, int length)
+        {
+            this.length = length;
+
+            var stream = new BinaryReader(new MemoryStream(data));
+
+            // Comprimentos dos campos: https://en.wikipedia.org/wiki/Internet_Control_Message_Protocol
+
+            Type = stream.ReadByte();
+            Code = stream.ReadByte();
+            Checksum = (ushort) IPAddress.NetworkToHostOrder((short)stream.ReadUInt16());
+            RestOfHeader = (uint) IPAddress.NetworkToHostOrder((int)stream.ReadUInt32());
+
+            var dataOffsetInBytes = 64 / 8;
+            Data = new byte[length - dataOffsetInBytes];
+            Array.Copy(data, dataOffsetInBytes, Data, 0, Data.Length);
+        }
+
+        public byte Type { get; private set; }
+        public byte Code { get; private set; }
+        public ushort Checksum { get; private set; }
+        public uint RestOfHeader { get; private set; }
+        public byte[] Data { get; private set; }
+
+        public override string ToString()
+        {
+            var result = new StringBuilder();
+            result.AppendLine("ICMP, " + length + " bytes");
+            result.AppendLine(Format.Binary("Type", Type, 8));
+            result.AppendLine(Format.Binary("Code", Code, 8));
+            result.AppendLine(Format.Binary("Checksum", Checksum, 16));
+            result.AppendLine(Format.Binary("RestOfHeader", RestOfHeader, 32));
             result.AppendLine(Encoding.Default.GetString(Data));
             return result.ToString();
         }
