@@ -156,6 +156,11 @@ namespace NetworkSniffer
             var internetHeaderLengthInBytes = InternetHeaderLength * 32 / 8;
             Data = new byte[TotalLength - internetHeaderLengthInBytes];
             Array.Copy(data, internetHeaderLengthInBytes, Data, 0, Data.Length);
+
+            DataAsProtocol =
+                Protocol == IPProtocolType.TCP
+                    ? new ProtocolTCP(Data, Data.Length)
+                    : null;
         }
 
         public byte Version { get; private set; }
@@ -172,6 +177,7 @@ namespace NetworkSniffer
         public uint SourceIPAddress { get; private set; }
         public uint DestinationIPAddress { get; private set; }
         public byte[] Data { get; private set; }
+        public object DataAsProtocol { get; private set; }
 
         public override string ToString()
         {
@@ -190,6 +196,80 @@ namespace NetworkSniffer
             result.AppendLine(Format.Binary("HeaderChecksum", HeaderChecksum, 16));
             result.AppendLine(Format.IPv4("SourceIPAddress", SourceIPAddress));
             result.AppendLine(Format.IPv4("DestinationIPAddress", DestinationIPAddress));
+
+            result.AppendLine(
+                DataAsProtocol != null
+                    ? DataAsProtocol.ToString()
+                    : Encoding.Default.GetString(Data));
+
+            return result.ToString();
+        }
+    }
+
+    class ProtocolTCP
+    {
+        private int length;
+
+        public ProtocolTCP(byte[] data, int length)
+        {
+            this.length = length;
+
+            var stream = new BinaryReader(new MemoryStream(data));
+
+            // Comprimentos dos campos: https://en.wikipedia.org/wiki/Transmission_Control_Protocol
+
+            int readed;
+
+            SourcePort = (ushort) IPAddress.NetworkToHostOrder((short)stream.ReadUInt16());
+
+            DestinationPort = (ushort) IPAddress.NetworkToHostOrder((short)stream.ReadUInt16());
+
+            SequenceNumber = (uint) IPAddress.NetworkToHostOrder(stream.ReadInt32());
+
+            AcknowledgmentNumber = (uint) IPAddress.NetworkToHostOrder((int)stream.ReadUInt32());
+
+            readed = (ushort) IPAddress.NetworkToHostOrder((short)stream.ReadUInt16());
+            DataOffset = (byte) (readed >> 12);
+            Reserved = (byte) ((byte) (readed << 4) >> (4 + 9));
+            Flags = (byte) ((byte) (readed << 7) >> 7);
+
+            WindowSize = (ushort) IPAddress.NetworkToHostOrder((short)stream.ReadUInt16());
+
+            Checksum = (ushort) IPAddress.NetworkToHostOrder((short)stream.ReadUInt16());
+
+            UrgentPointer = (ushort) IPAddress.NetworkToHostOrder((short)stream.ReadUInt16());
+
+            var dataOffsetInBytes = DataOffset * 32 / 8;
+            Data = new byte[length - dataOffsetInBytes];
+            Array.Copy(data, dataOffsetInBytes, Data, 0, Data.Length);
+        }
+
+        public ushort SourcePort { get; private set; }
+        public ushort DestinationPort { get; private set; }
+        public uint SequenceNumber { get; private set; }
+        public uint AcknowledgmentNumber { get; private set; }
+        public byte DataOffset { get; private set; }
+        public byte Reserved { get; private set; }
+        public ushort Flags { get; private set; }
+        public ushort WindowSize { get; private set; }
+        public ushort Checksum { get; private set; }
+        public ushort UrgentPointer { get; private set; }
+        public byte[] Data { get; private set; }
+
+        public override string ToString()
+        {
+            var result = new StringBuilder();
+            result.AppendLine("TCP, " + length + " bytes");
+            result.AppendLine(Format.Binary("SourcePort", SourcePort, 16));
+            result.AppendLine(Format.Binary("DestinationPort", DestinationPort, 16));
+            result.AppendLine(Format.Binary("SequenceNumber", SequenceNumber, 32));
+            result.AppendLine(Format.Binary("AcknowledgmentNumber", AcknowledgmentNumber, 32));
+            result.AppendLine(Format.Binary("DataOffset", DataOffset, 4));
+            result.AppendLine(Format.Binary("Reserved", Reserved, 3));
+            result.AppendLine(Format.Binary("Flags", Flags, 9));
+            result.AppendLine(Format.Binary("WindowSize", WindowSize, 16));
+            result.AppendLine(Format.Binary("Checksum", Checksum, 16));
+            result.AppendLine(Format.Binary("UrgentPointer", UrgentPointer, 16));
             result.AppendLine(Encoding.Default.GetString(Data));
             return result.ToString();
         }
